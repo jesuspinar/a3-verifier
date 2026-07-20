@@ -1,0 +1,126 @@
+<mat-toolbar>
+  <span>{{ i18n.t('app.title') }}</span>
+  <span class="toolbar-spacer"></span>
+  <app-language-selector />
+  <button mat-button type="button" (click)="toggleTheme()" [attr.aria-pressed]="darkTheme()">
+    {{ darkTheme() ? i18n.t('theme.useLight') : i18n.t('theme.useDark') }}
+  </button>
+</mat-toolbar>
+
+<main class="dashboard p-6">
+  <section class="intro mb-6">
+    <p class="eyebrow">{{ i18n.t('dashboard.eyebrow') }}</p>
+    <h1 class="page-title">{{ i18n.t('dashboard.title') }}</h1>
+    <p class="page-subtitle">
+      {{ i18n.t('dashboard.subtitle') }}
+    </p>
+  </section>
+
+  <section class="panel">
+    <div class="flex flex-row panel-steps">
+      <!-- Step 1 -->
+      <div class="step col-6 flex justify-between align-center gap-4 p-6">
+        <div class="flex align-center gap-3">
+          <span class="step-badge">1</span>
+          <div>
+            <h2 class="step-title">{{ i18n.t('dashboard.csvTitle') }}</h2>
+            <p class="step-desc" aria-live="polite">
+              {{ csvFile()?.name || i18n.t('dashboard.noCsv') }}
+            </p>
+          </div>
+        </div>
+        <input
+          #csvInput
+          class="hidden"
+          type="file"
+          accept=".csv,text/csv"
+          (change)="selectCsv($event)"
+        />
+        <button mat-stroked-button type="button" class="step-btn" (click)="csvInput.click()">
+          {{ i18n.t('dashboard.browseCsv') }}
+        </button>
+      </div>
+
+      <mat-divider vertical class="step-divider"></mat-divider>
+
+      <!-- Step 2 -->
+      <div class="step col-6 flex justify-between align-center gap-4 p-6">
+        <div class="flex align-center gap-3">
+          <span class="step-badge">2</span>
+          <div>
+            <h2 class="step-title">{{ i18n.t('dashboard.pdfTitle') }}</h2>
+            <p class="step-desc" aria-live="polite">
+              {{
+                pdfFiles().length
+                  ? i18n.t('dashboard.pdfCount', { count: pdfFiles().length })
+                  : i18n.t('dashboard.noPdf')
+              }}
+            </p>
+          </div>
+        </div>
+        <div class="flex flex-wrap align-center justify-end gap-3">
+          <input
+            #folderInput
+            class="hidden"
+            type="file"
+            webkitdirectory
+            multiple
+            accept="application/pdf,.pdf"
+            (change)="selectFolder($event)"
+          />
+          <button mat-stroked-button type="button" class="step-btn" (click)="folderInput.click()">
+            {{ i18n.t('dashboard.folder') }}
+          </button>
+          <input
+            #filesInput
+            class="hidden"
+            type="file"
+            multiple
+            accept="application/pdf,.pdf"
+            (change)="selectFolder($event)"
+          />
+          <button mat-button type="button" class="step-link" (click)="filesInput.click()">
+            {{ i18n.t('dashboard.multiplePdf') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <mat-divider></mat-divider>
+
+    <div class="flex justify-end p-4">
+      <button
+        mat-flat-button
+        type="button"
+        [disabled]="!csvFile() || !pdfFiles().length || reconciliation.loading()"
+        (click)="process()"
+      >
+        {{ i18n.t('dashboard.process') }}
+      </button>
+    </div>
+
+    @if (reconciliation.loading()) {
+      <mat-progress-bar
+        mode="indeterminate"
+        [attr.aria-label]="i18n.t('dashboard.reconcilingLabel')"
+      />
+      <p class="hidden" aria-live="assertive">{{ i18n.t('dashboard.reconciling') }}</p>
+    }
+  </section>
+
+  @if (reconciliation.hasResults()) {
+    @defer (when reconciliation.hasResults()) {
+      <app-results />
+    }
+  } @else if (!reconciliation.loading()) {
+    <mat-card appearance="outlined" class="empty-state mt-6 pb-10">
+      <mat-card-content>
+        <h2>{{ i18n.t('dashboard.readyTitle') }}</h2>
+        <p>{{ i18n.t('dashboard.readyText') }}</p>
+      </mat-card-content>
+    </mat-card>
+  }
+</main>
+<p class="footer-note text-center mt-6 pb-6">
+  {{ i18n.t('dashboard.footer') }}
+</p>

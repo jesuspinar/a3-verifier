@@ -1,0 +1,125 @@
+<div class="grid grid-cols-auto-fit-200 gap-4 pt-6 pb-6">
+  <mat-card appearance="outlined" aria-labelledby="summary-title">
+    <mat-card-header>
+      <mat-card-title>{{ i18n.t('results.total') }}</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      {{ reconciliation.summary().total }}
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card appearance="outlined" aria-labelledby="summary-title">
+    <mat-card-header>
+      <mat-card-title>{{ i18n.t('results.matches') }}</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      {{ reconciliation.summary().matches }}
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card appearance="outlined" aria-labelledby="summary-title">
+    <mat-card-header>
+      <mat-card-title>{{ i18n.t('results.incidents') }}</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      {{ reconciliation.summary().incidents }}
+    </mat-card-content>
+  </mat-card>
+</div>
+
+<mat-card appearance="outlined">
+  <mat-card-header>
+    <mat-card-title>{{ i18n.t('results.title') }}</mat-card-title>
+    <mat-card-subtitle>{{ i18n.t('results.subtitle') }}</mat-card-subtitle>
+  </mat-card-header>
+  <mat-card-content>
+    <div class="filters flex flex-wrap gap-4 pt-4">
+      <mat-form-field appearance="outline">
+        <mat-label>{{ i18n.t('results.filterLabel') }}</mat-label>
+        <input
+          matInput
+          type="search"
+          (input)="applyTextFilter($event)"
+          [attr.aria-label]="i18n.t('results.filterAria')"
+        />
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>{{ i18n.t('results.statusLabel') }}</mat-label>
+        <mat-select
+          value=""
+          (valueChange)="applyStatusFilter($event)"
+          [attr.aria-label]="i18n.t('results.statusAria')"
+        >
+          <mat-option value="">{{ i18n.t('results.allStatuses') }}</mat-option>
+          @for (status of statuses; track status) {
+            <mat-option [value]="status">{{ statusLabel(status) }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <div class="table-container">
+      <table
+        mat-table
+        [dataSource]="dataSource"
+        matSort
+        [attr.aria-label]="i18n.t('results.tableAria')"
+      >
+        <ng-container matColumnDef="nif">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ i18n.t('results.nif') }}</th>
+          <td mat-cell *matCellDef="let row">{{ row.nif || '—' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="model">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ i18n.t('results.model') }}</th>
+          <td mat-cell *matCellDef="let row">{{ row.model || '—' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="period">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ i18n.t('results.period') }}</th>
+          <td mat-cell *matCellDef="let row">{{ row.period || '—' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="companyName">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>
+            {{ i18n.t('results.companyName') }}
+          </th>
+          <td mat-cell *matCellDef="let row">{{ row.companyName || '—' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="filingDate">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>
+            {{ i18n.t('results.filingDate') }}
+          </th>
+          <td mat-cell *matCellDef="let row">{{ row.filingDate || '—' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ i18n.t('results.status') }}</th>
+          <td mat-cell *matCellDef="let row">
+            <span [attr.class]="'status-chip ' + statusClass(row.status)">{{
+              statusLabel(row.status)
+            }}</span>
+          </td>
+        </ng-container>
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>{{ i18n.t('results.actions') }}</th>
+          <td mat-cell *matCellDef="let row">
+            <button mat-button type="button" (click)="showDetails(row); $event.stopPropagation()">
+              {{ i18n.t('results.details') }}
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns" (click)="showDetails(row)"></tr>
+        <tr class="mat-row" *matNoDataRow>
+          <td class="mat-cell empty-cell" [attr.colspan]="displayedColumns.length">
+            {{ i18n.t('results.noMatches') }}
+          </td>
+        </tr>
+      </table>
+    </div>
+    <mat-paginator
+      [pageSize]="10"
+      [pageSizeOptions]="[5, 10, 25, 50]"
+      showFirstLastButtons
+      [attr.aria-label]="i18n.t('results.pages')"
+    />
+  </mat-card-content>
+</mat-card>

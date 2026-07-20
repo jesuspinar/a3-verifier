@@ -1,0 +1,61 @@
+.filters mat-form-field {
+  flex: 1 1 16rem;
+}
+
+.table-container {
+ padding-top: 1rem;
+  overflow-x: scroll;
+  -webkit-overflow-scrolling: touch; // smooth momentum scroll on iOS
+}
+
+tr[mat-row] {
+  cursor: pointer;
+}
+
+tr[mat-row]:hover {
+  background: var(--mat-sys-surface-container);
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  max-width: 100%;
+  padding: 0 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.5rem;
+  white-space: nowrap;
+}
+
+.status-matches {
+  background: color-mix(in srgb, #2e7d32 18%, transparent);
+  color: #1b5e20;
+}
+
+.status-no-pdf-receipt,
+.status-pdf-not-found-in-a3,
+.status-duplicate {
+  background: color-mix(in srgb, var(--mat-sys-error) 16%, transparent);
+  color: var(--mat-sys-error);
+}
+
+.status-manual-review {
+  background: color-mix(in srgb, #7b5800 18%, transparent);
+  color: #6b4f00;
+}
+
+:host-context(.dark-theme) .status-matches {
+  color: #9bd69e;
+}
+
+:host-context(.dark-theme) .status-manual-review {
+  color: #f0cf74;
+}
+
+.empty-cell {
+  width: 100%;
+  padding: 2rem;
+  text-align: center;
+}

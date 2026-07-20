@@ -1,0 +1,10 @@
+<button
+  mat-button
+  type="button"
+  class="language-button"
+  (click)="toggleLanguage()"
+  [matTooltip]="this.i18n.t('language.switchTo')"
+  [attr.aria-label]="this.i18n.t('language.switchTo')"
+>
+  {{ this.i18n.language().toUpperCase() }}
+</button>

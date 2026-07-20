@@ -1,0 +1,59 @@
+<h2 mat-dialog-title>{{ i18n.t('details.title') }}</h2>
+<mat-dialog-content>
+  <mat-list>
+    <mat-list-item
+      ><span matListItemTitle>{{ i18n.t('results.nif') }}</span
+      ><span matListItemLine>{{ data.nif || i18n.t('common.notFound') }}</span></mat-list-item
+    >
+    <mat-list-item
+      ><span matListItemTitle>{{ i18n.t('results.model') }}</span
+      ><span matListItemLine>{{ data.model || i18n.t('common.notFound') }}</span></mat-list-item
+    >
+    <mat-list-item
+      ><span matListItemTitle>{{ i18n.t('results.period') }}</span
+      ><span matListItemLine>{{ data.period || i18n.t('common.notFound') }}</span></mat-list-item
+    >
+    <mat-list-item
+      ><span matListItemTitle>{{ i18n.t('results.companyName') }}</span
+      ><span matListItemLine>{{
+        data.companyName || i18n.t('common.notFound')
+      }}</span></mat-list-item
+    >
+    <mat-list-item
+      ><span matListItemTitle>{{ i18n.t('results.filingDate') }}</span
+      ><span matListItemLine>{{
+        data.filingDate || i18n.t('common.notFound')
+      }}</span></mat-list-item
+    >
+    <mat-list-item
+      ><span matListItemTitle>{{ i18n.t('results.pdf') }}</span
+      ><span matListItemLine>{{
+        data.pdfFileName || i18n.t('common.notAvailable')
+      }}</span></mat-list-item
+    >
+  </mat-list>
+  <mat-divider />
+  <section class="detail-section" aria-labelledby="explanation-heading">
+    <h3 id="explanation-heading">{{ i18n.t('details.explanation') }}</h3>
+    <p>{{ i18n.message(data.explanationMessage) }}</p>
+    @if (data.warningMessage) {
+      <p class="warning">
+        <strong>{{ i18n.t('details.warning') }}</strong> {{ i18n.message(data.warningMessage) }}
+      </p>
+    }
+    @if (data.suggestionMessage) {
+      <p>
+        <strong>{{ i18n.t('details.suggestion') }}</strong>
+        {{ i18n.message(data.suggestionMessage) }}
+      </p>
+    }
+  </section>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  @if (data.pdfFile) {
+    <button mat-button type="button" (click)="openReceipt()">
+      {{ i18n.t('details.openPdf') }}
+    </button>
+  }
+  <button mat-flat-button type="button" (click)="close()">{{ i18n.t('details.close') }}</button>
+</mat-dialog-actions>
