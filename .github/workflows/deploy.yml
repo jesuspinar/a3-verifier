@@ -1,19 +1,20 @@
-name: Deploy to GitHub Pages
+name: Deploy Angular to GitHub Pages
 
 on:
   push:
+    branches:
+      - main
+  pull_request:
     branches:
       - main
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
-concurrency:
-  group: pages
-  cancel-in-progress: false
+env:
+  NODE_VERSION: 24
+  DIST_PATH: dist/a3-docs-verifier/browser
 
 jobs:
   build:
@@ -22,12 +23,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install dependencies
@@ -39,25 +40,38 @@ jobs:
       - name: Build
         run: npm run build -- --configuration production --base-href "/${{ github.event.repository.name }}/"
 
+      - name: Configure GitHub Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v6
+
       - name: Prepare Pages artifact
+        if: github.event_name != 'pull_request'
         run: |
-          cp dist/a3-docs-verifier/browser/index.html dist/a3-docs-verifier/browser/404.html
-          touch dist/a3-docs-verifier/browser/.nojekyll
+          cp "${DIST_PATH}/index.html" "${DIST_PATH}/404.html"
+          touch "${DIST_PATH}/.nojekyll"
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
         with:
-          path: dist/a3-docs-verifier/browser
+          path: ${{ env.DIST_PATH }}
 
   deploy:
     name: Deploy
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
 
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
