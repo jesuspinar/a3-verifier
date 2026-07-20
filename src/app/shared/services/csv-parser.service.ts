@@ -13,12 +13,25 @@ const REQUIRED_COLUMNS = [MODEL_COLUMN, PERIOD_COLUMN, COMBINED_NAME_COLUMN, NIF
 
 type CsvRow = Record<string, string | undefined>;
 type PapaParseModule = typeof import('papaparse');
+type PapaParseImport = PapaParseModule & { readonly default?: PapaParseModule };
 
 let papaParsePromise: Promise<PapaParseModule> | null = null;
 
 function loadPapaParse(): Promise<PapaParseModule> {
-  papaParsePromise ??= import('papaparse');
+  papaParsePromise ??= import('papaparse').then(resolvePapaParseModule);
   return papaParsePromise;
+}
+
+export function resolvePapaParseModule(module: PapaParseImport): PapaParseModule {
+  if (typeof module.parse === 'function') {
+    return module;
+  }
+
+  if (module.default && typeof module.default.parse === 'function') {
+    return module.default;
+  }
+
+  throw new Error('PapaParse module did not expose a parse function.');
 }
 
 @Injectable({ providedIn: 'root' })
