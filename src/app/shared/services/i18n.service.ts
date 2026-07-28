@@ -73,21 +73,15 @@ const TRANSLATIONS = {
     'results.pages': 'Paginas de resultados',
     'status.Matches': 'Coincide',
     'status.No PDF receipt': 'Sin justificante PDF',
-    'status.PDF not found in A3': 'PDF no encontrado en A3',
     'status.Manual review': 'Revision manual',
-    'status.Duplicate': 'Duplicado',
     'details.title': 'Detalles de conciliacion',
     'details.explanation': 'Explicacion',
     'details.warning': 'Aviso:',
     'details.suggestion': 'Sugerencia:',
     'details.openPdf': 'Abrir justificante PDF',
     'details.close': 'Cerrar',
-    'reconciliation.explanation.duplicate':
-      'La clave aparece {a3Count} vez/veces en A3 y {pdfCount} vez/veces en la carpeta PDF.',
     'reconciliation.explanation.noPdf':
       'El registro de A3 no tiene un justificante PDF con la misma clave exacta.',
-    'reconciliation.explanation.noA3':
-      'El justificante PDF no tiene un registro de A3 con la misma clave exacta.',
     'reconciliation.explanation.matches':
       'Exactamente un registro de A3 y un justificante PDF tienen la misma clave.',
     'reconciliation.explanation.incompleteA3':
@@ -167,19 +161,14 @@ const TRANSLATIONS = {
     'results.pages': 'Results pages',
     'status.Matches': 'Matches',
     'status.No PDF receipt': 'No PDF receipt',
-    'status.PDF not found in A3': 'PDF not found in A3',
     'status.Manual review': 'Manual review',
-    'status.Duplicate': 'Duplicate',
     'details.title': 'Reconciliation details',
     'details.explanation': 'Explanation',
     'details.warning': 'Warning:',
     'details.suggestion': 'Suggestion:',
     'details.openPdf': 'Open PDF receipt',
     'details.close': 'Close',
-    'reconciliation.explanation.duplicate':
-      'The key occurs {a3Count} time(s) in A3 and {pdfCount} time(s) in the PDF folder.',
     'reconciliation.explanation.noPdf': 'The A3 record has no PDF receipt with the same exact key.',
-    'reconciliation.explanation.noA3': 'The PDF receipt has no A3 record with the same exact key.',
     'reconciliation.explanation.matches':
       'Exactly one A3 record and one PDF receipt have the same key.',
     'reconciliation.explanation.incompleteA3':

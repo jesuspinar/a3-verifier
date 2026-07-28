@@ -3,9 +3,7 @@ import type { TranslationMessage } from '../services/i18n.service';
 export const RECONCILIATION_STATUSES = [
   'Matches',
   'No PDF receipt',
-  'PDF not found in A3',
   'Manual review',
-  'Duplicate',
 ] as const;
 
 export type ReconciliationStatus = (typeof RECONCILIATION_STATUSES)[number];

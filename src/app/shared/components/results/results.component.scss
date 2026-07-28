@@ -34,9 +34,7 @@ tr[mat-row]:hover {
   color: #1b5e20;
 }
 
-.status-no-pdf-receipt,
-.status-pdf-not-found-in-a3,
-.status-duplicate {
+.status-no-pdf-receipt {
   background: color-mix(in srgb, var(--mat-sys-error) 16%, transparent);
   color: var(--mat-sys-error);
 }

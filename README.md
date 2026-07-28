@@ -8,7 +8,7 @@ A3 Docs Verifier is an Angular application for reconciling an A3 CSV report with
 - Import a folder or multiple PDF receipts.
 - Extract NIF, model, period, company name, and filing date from AEAT receipts.
 - Match records by normalized `NIF + model + period`.
-- Flag missing receipts, PDFs not found in A3, duplicate keys, and records that need manual review.
+- Flag missing receipts and records that need manual review.
 - Warn when matched records have different company names.
 - Filter, sort, paginate, and inspect reconciliation results.
 - Open the matched PDF receipt directly from a result row.
@@ -61,9 +61,9 @@ Result statuses:
 
 - `Matches`: exactly one A3 row and one PDF share the same key.
 - `No PDF receipt`: an A3 row has no matching PDF receipt.
-- `PDF not found in A3`: a PDF receipt has no matching A3 row.
-- `Duplicate`: the same key appears more than once in A3, the PDF set, or both.
 - `Manual review`: a record is missing the data needed for automatic matching.
+
+PDF receipts with no matching A3 row and duplicated keys are ignored in the results.
 
 ## Getting Started
 

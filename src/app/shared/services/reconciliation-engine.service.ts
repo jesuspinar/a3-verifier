@@ -22,9 +22,10 @@ export class ReconciliationEngineService {
     const a3ByKey = this.groupComplete(a3Records);
     const pdfByKey = this.groupComplete(pdfReceipts);
     const completeKeys = new Set([...a3ByKey.keys(), ...pdfByKey.keys()]);
-    const results = [...completeKeys].map((key) =>
-      this.reconcileKey(key, a3ByKey.get(key) ?? [], pdfByKey.get(key) ?? []),
-    );
+    const results = [...completeKeys].flatMap((key) => {
+      const result = this.reconcileKey(key, a3ByKey.get(key) ?? [], pdfByKey.get(key) ?? []);
+      return result ? [result] : [];
+    });
 
     for (const record of a3Records.filter((item) => !buildKey(item))) {
       results.push(this.incompleteA3(record, pdfReceipts));
@@ -42,28 +43,21 @@ export class ReconciliationEngineService {
     key: string,
     a3Records: readonly A3Record[],
     pdfReceipts: readonly PdfReceipt[],
-  ): ReconciliationResult {
+  ): ReconciliationResult | null {
     const a3 = a3Records[0];
     const pdf = pdfReceipts[0];
     let status: ReconciliationStatus;
     let explanation: string;
     let explanationMessage: TranslationMessage;
 
-    if (a3Records.length > 1 || pdfReceipts.length > 1) {
-      status = 'Duplicate';
-      explanation = `The key occurs ${a3Records.length} time(s) in A3 and ${pdfReceipts.length} time(s) in the PDF folder.`;
-      explanationMessage = {
-        key: 'reconciliation.explanation.duplicate',
-        params: { a3Count: a3Records.length, pdfCount: pdfReceipts.length },
-      };
-    } else if (!pdf) {
+    if (a3Records.length > 1 || pdfReceipts.length > 1 || !a3) {
+      return null;
+    }
+
+    if (!pdf) {
       status = 'No PDF receipt';
       explanation = 'The A3 record has no PDF receipt with the same exact key.';
       explanationMessage = { key: 'reconciliation.explanation.noPdf' };
-    } else if (!a3) {
-      status = 'PDF not found in A3';
-      explanation = 'The PDF receipt has no A3 record with the same exact key.';
-      explanationMessage = { key: 'reconciliation.explanation.noA3' };
     } else {
       status = 'Matches';
       explanation = 'Exactly one A3 record and one PDF receipt have the same key.';
