@@ -45,9 +45,11 @@ export class ReconciliationService {
   readonly csvWarnings = computed(() => this.state().csvWarnings);
   readonly hasResults = computed(() => this.results().length > 0);
   readonly summary = computed<ReconciliationSummary>(() => {
-    const results = this.results();
+    const current = this.state();
+    const results = current.results;
     const matches = results.filter((result) => result.status === 'Matches').length;
-    return { matches, incidents: results.length - matches, total: results.length };
+    const noPdfReceipts = results.filter((result) => result.status === 'No PDF receipt').length;
+    return { matches, noPdfReceipts, total: current.a3Records.length };
   });
 
   async process(csvFile: File, pdfFiles: readonly File[]): Promise<void> {

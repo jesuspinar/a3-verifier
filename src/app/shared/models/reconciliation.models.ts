@@ -49,7 +49,7 @@ export interface ReconciliationResult {
 
 export interface ReconciliationSummary {
   readonly matches: number;
-  readonly incidents: number;
+  readonly noPdfReceipts: number;
   readonly total: number;
 }
 
