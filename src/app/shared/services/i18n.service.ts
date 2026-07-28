@@ -83,7 +83,7 @@ const TRANSLATIONS = {
     'reconciliation.explanation.noPdf':
       'El registro de A3 no tiene un justificante PDF con la misma clave exacta.',
     'reconciliation.explanation.matches':
-      'Exactamente un registro de A3 y un justificante PDF tienen la misma clave.',
+      'El registro de A3 tiene al menos un justificante PDF con la misma clave exacta.',
     'reconciliation.explanation.incompleteA3':
       'Al registro de A3 le falta NIF, modelo o un periodo con año, por lo que no se puede conciliar automaticamente.',
     'reconciliation.explanation.incompletePdf':
@@ -92,6 +92,8 @@ const TRANSLATIONS = {
       'Al PDF le falta NIF, modelo o un periodo con año, por lo que no se puede conciliar automaticamente. La extraccion de texto fallo: {message}',
     'reconciliation.warning.companyNameDiffers':
       'La razon social no coincide: A3 "{a3CompanyName}"; PDF "{pdfCompanyName}".',
+    'reconciliation.warning.duplicatedPdfs':
+      'Hay {count} justificantes PDF con la misma clave: {fileNames}.',
     'reconciliation.suggestion.nameOnly':
       'Posible coincidencia en {origin} solo por nombre: {descriptor}.',
     'reconciliation.csv.rowWarning': 'Fila {row}: {message}',
@@ -170,7 +172,7 @@ const TRANSLATIONS = {
     'details.close': 'Close',
     'reconciliation.explanation.noPdf': 'The A3 record has no PDF receipt with the same exact key.',
     'reconciliation.explanation.matches':
-      'Exactly one A3 record and one PDF receipt have the same key.',
+      'The A3 record has at least one PDF receipt with the same exact key.',
     'reconciliation.explanation.incompleteA3':
       'The A3 record is missing NIF, model, or a period with year, so it cannot be matched automatically.',
     'reconciliation.explanation.incompletePdf':
@@ -179,6 +181,8 @@ const TRANSLATIONS = {
       'The PDF is missing NIF, model, or a period with year, so it cannot be matched automatically. Text extraction failed: {message}',
     'reconciliation.warning.companyNameDiffers':
       'Company name differs: A3 "{a3CompanyName}"; PDF "{pdfCompanyName}".',
+    'reconciliation.warning.duplicatedPdfs':
+      '{count} PDF receipts share the same key: {fileNames}.',
     'reconciliation.suggestion.nameOnly': 'Possible {origin} match by name only: {descriptor}.',
     'reconciliation.csv.rowWarning': 'Row {row}: {message}',
     'reconciliation.error.csvRead': 'The CSV could not be read: {message}',

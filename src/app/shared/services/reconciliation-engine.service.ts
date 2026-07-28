@@ -70,7 +70,7 @@ export class ReconciliationEngineService {
     let explanation: string;
     let explanationMessage: TranslationMessage;
 
-    if (a3Records.length > 1 || pdfReceipts.length > 1 || !a3) {
+    if (a3Records.length > 1 || !a3) {
       return null;
     }
 
@@ -80,20 +80,27 @@ export class ReconciliationEngineService {
       explanationMessage = { key: 'reconciliation.explanation.noPdf' };
     } else {
       status = 'Matches';
-      explanation = 'Exactly one A3 record and one PDF receipt have the same key.';
+      explanation = 'The A3 record has at least one PDF receipt with the same key.';
       explanationMessage = { key: 'reconciliation.explanation.matches' };
     }
 
-    const warning =
-      a3 &&
-      pdf &&
-      a3.companyName &&
-      pdf.companyName &&
-      !namesAreSimilar(a3.companyName, pdf.companyName)
+    const pdfFileNames = pdfReceipts.map((receipt) => receipt.fileName).join(', ');
+    const hasDuplicatedPdfs = pdfReceipts.length > 1;
+    const warning = hasDuplicatedPdfs
+      ? `Multiple PDF receipts share this key: ${pdfFileNames}.`
+      : a3 &&
+          pdf &&
+          a3.companyName &&
+          pdf.companyName &&
+          !namesAreSimilar(a3.companyName, pdf.companyName)
         ? `Company name differs: A3 “${a3.companyName}”; PDF “${pdf.companyName}”.`
         : '';
-    const warningMessage =
-      a3 && pdf && warning
+    const warningMessage: TranslationMessage | undefined = hasDuplicatedPdfs
+      ? {
+          key: 'reconciliation.warning.duplicatedPdfs' as const,
+          params: { count: pdfReceipts.length, fileNames: pdfFileNames },
+        }
+      : a3 && pdf && warning
         ? {
             key: 'reconciliation.warning.companyNameDiffers' as const,
             params: { a3CompanyName: a3.companyName, pdfCompanyName: pdf.companyName },

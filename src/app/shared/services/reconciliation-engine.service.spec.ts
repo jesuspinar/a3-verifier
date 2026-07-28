@@ -57,13 +57,20 @@ describe('ReconciliationEngineService', () => {
     expect(results).toEqual([]);
   });
 
-  it('ignores duplicated PDF keys', () => {
+  it('matches duplicated PDF keys with a warning', () => {
     const results = service.reconcile(
       [a3Record()],
       [pdfReceipt({ id: 'pdf-1' }), pdfReceipt({ id: 'pdf-2', fileName: 'receipt-2.pdf' })],
     );
 
-    expect(results).toEqual([]);
+    expect(results).toHaveLength(1);
+    expect(results[0].status).toBe('Matches');
+    expect(results[0].pdfCount).toBe(2);
+    expect(results[0].pdfFileName).toBe('receipt.pdf');
+    expect(results[0].warningMessage).toEqual({
+      key: 'reconciliation.warning.duplicatedPdfs',
+      params: { count: 2, fileNames: 'receipt.pdf, receipt-2.pdf' },
+    });
   });
 });
 
