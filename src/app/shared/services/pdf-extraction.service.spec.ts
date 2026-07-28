@@ -1,5 +1,20 @@
 import { PdfExtractionService } from './pdf-extraction.service';
 
+const pdfJsMocks = vi.hoisted(() => ({
+  documentCleanup: vi.fn(() => Promise.resolve()),
+  documentDestroy: vi.fn(() => Promise.resolve()),
+  getDocument: vi.fn(),
+  getPage: vi.fn(),
+  getTextContent: vi.fn(),
+  loadingDestroy: vi.fn(() => Promise.resolve()),
+  pageCleanup: vi.fn(),
+}));
+
+vi.mock('pdfjs-dist/legacy/build/pdf.mjs', () => ({
+  GlobalWorkerOptions: {},
+  getDocument: pdfJsMocks.getDocument,
+}));
+
 const COMPANY_WORDS = [
   'ALFA',
   'BRAVO',
@@ -45,9 +60,7 @@ function randomDeclarationData(): RandomDeclarationData {
     companyName: `${randomCompanyWords(3)} S L`,
     presenterName: `${randomCompanyWords(2)} REPRESENTANTE`,
     filingDate: `${pad2(randomInt(1, 28))}-${pad2(randomInt(1, 12))}-${randomInt(2020, 2029)}`,
-    filingTime: `${pad2(randomInt(0, 23))}:${pad2(randomInt(0, 59))}:${pad2(
-      randomInt(0, 59),
-    )}`,
+    filingTime: `${pad2(randomInt(0, 23))}:${pad2(randomInt(0, 59))}:${pad2(randomInt(0, 59))}`,
   };
 }
 
@@ -84,6 +97,7 @@ describe('PdfExtractionService', () => {
 
   beforeEach(() => {
     service = new PdfExtractionService();
+    vi.clearAllMocks();
   });
 
   it('extracts declaration fields from AEAT PDFs when labels and values are separated', () => {
@@ -151,5 +165,70 @@ describe('PdfExtractionService', () => {
     `);
 
     expect(fields.model).toBe(data.model);
+  });
+
+  it('releases pdf.js page and document resources after extracting a PDF', async () => {
+    const data = randomDeclarationData();
+    pdfJsMocks.getTextContent.mockResolvedValue({
+      items: [
+        { str: `Modelo ${data.model}`, hasEOL: true },
+        { str: `${data.nif} ${data.companyName}`, hasEOL: true },
+        { str: `${data.year} ${data.quarter}`, hasEOL: true },
+      ],
+    });
+    pdfJsMocks.getPage.mockResolvedValue({
+      cleanup: pdfJsMocks.pageCleanup,
+      getTextContent: pdfJsMocks.getTextContent,
+    });
+    pdfJsMocks.getDocument.mockReturnValue({
+      destroy: pdfJsMocks.loadingDestroy,
+      promise: Promise.resolve({
+        cleanup: pdfJsMocks.documentCleanup,
+        destroy: pdfJsMocks.documentDestroy,
+        getPage: pdfJsMocks.getPage,
+        numPages: 1,
+      }),
+    });
+
+    const receipt = await service.extract(new File(['pdf'], 'receipt.pdf'), 7);
+
+    expect(receipt).toEqual({
+      id: 'pdf-7-receipt.pdf',
+      nif: data.nif,
+      model: data.model,
+      period: `${data.quarter}/${data.year}`,
+      companyName: data.companyName,
+      filingDate: '',
+      fileName: 'receipt.pdf',
+      extractionWarning: undefined,
+    });
+    expect(pdfJsMocks.pageCleanup).toHaveBeenCalledOnce();
+    expect(pdfJsMocks.documentCleanup).toHaveBeenCalledOnce();
+    expect(pdfJsMocks.documentDestroy).toHaveBeenCalledOnce();
+    expect(pdfJsMocks.loadingDestroy).not.toHaveBeenCalled();
+  });
+
+  it('releases pdf.js resources when text extraction fails', async () => {
+    pdfJsMocks.getTextContent.mockRejectedValue(new Error('Cannot read page text'));
+    pdfJsMocks.getPage.mockResolvedValue({
+      cleanup: pdfJsMocks.pageCleanup,
+      getTextContent: pdfJsMocks.getTextContent,
+    });
+    pdfJsMocks.getDocument.mockReturnValue({
+      destroy: pdfJsMocks.loadingDestroy,
+      promise: Promise.resolve({
+        cleanup: pdfJsMocks.documentCleanup,
+        destroy: pdfJsMocks.documentDestroy,
+        getPage: pdfJsMocks.getPage,
+        numPages: 1,
+      }),
+    });
+
+    const receipt = await service.extract(new File(['pdf'], 'receipt.pdf'), 3);
+
+    expect(receipt.extractionWarning).toBe('Cannot read page text');
+    expect(pdfJsMocks.pageCleanup).toHaveBeenCalledOnce();
+    expect(pdfJsMocks.documentCleanup).toHaveBeenCalledOnce();
+    expect(pdfJsMocks.documentDestroy).toHaveBeenCalledOnce();
   });
 });

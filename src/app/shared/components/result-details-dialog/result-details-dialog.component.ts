@@ -18,15 +18,6 @@ export class ResultDetailsDialogComponent {
   readonly i18n = inject(I18nService);
   private readonly dialogRef = inject(MatDialogRef<ResultDetailsDialogComponent>);
 
-  openReceipt(): void {
-    if (!this.data.pdfFile) {
-      return;
-    }
-    const url = URL.createObjectURL(this.data.pdfFile);
-    window.open(url, '_blank', 'noopener,noreferrer');
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  }
-
   close(): void {
     this.dialogRef.close();
   }

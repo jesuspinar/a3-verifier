@@ -13,25 +13,45 @@ interface SuggestionResult {
   readonly message?: TranslationMessage;
 }
 
+interface SuggestionCandidate {
+  readonly normalizedName: string;
+  readonly descriptor: string;
+}
+
+interface SuggestionIndex {
+  readonly exact: Map<string, SuggestionCandidate>;
+  readonly candidates: readonly SuggestionCandidate[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class ReconciliationEngineService {
   reconcile(
     a3Records: readonly A3Record[],
     pdfReceipts: readonly PdfReceipt[],
   ): ReconciliationResult[] {
-    const a3ByKey = this.groupComplete(a3Records);
-    const pdfByKey = this.groupComplete(pdfReceipts);
+    const completeA3Records: A3Record[] = [];
+    const incompleteA3Records: A3Record[] = [];
+    const completePdfReceipts: PdfReceipt[] = [];
+    const incompletePdfReceipts: PdfReceipt[] = [];
+
+    this.partitionByCompleteKey(a3Records, completeA3Records, incompleteA3Records);
+    this.partitionByCompleteKey(pdfReceipts, completePdfReceipts, incompletePdfReceipts);
+
+    const a3ByKey = this.groupComplete(completeA3Records);
+    const pdfByKey = this.groupComplete(completePdfReceipts);
+    const a3SuggestionIndex = this.createSuggestionIndex(a3Records);
+    const pdfSuggestionIndex = this.createSuggestionIndex(pdfReceipts);
     const completeKeys = new Set([...a3ByKey.keys(), ...pdfByKey.keys()]);
     const results = [...completeKeys].flatMap((key) => {
       const result = this.reconcileKey(key, a3ByKey.get(key) ?? [], pdfByKey.get(key) ?? []);
       return result ? [result] : [];
     });
 
-    for (const record of a3Records.filter((item) => !buildKey(item))) {
-      results.push(this.incompleteA3(record, pdfReceipts));
+    for (const record of incompleteA3Records) {
+      results.push(this.incompleteA3(record, pdfSuggestionIndex));
     }
-    for (const receipt of pdfReceipts.filter((item) => !buildKey(item))) {
-      results.push(this.incompletePdf(receipt, a3Records));
+    for (const receipt of incompletePdfReceipts) {
+      results.push(this.incompletePdf(receipt, a3SuggestionIndex));
     }
 
     return results.sort(
@@ -96,8 +116,11 @@ export class ReconciliationEngineService {
     });
   }
 
-  private incompleteA3(record: A3Record, pdfReceipts: readonly PdfReceipt[]): ReconciliationResult {
-    const suggestion = this.findSuggestion(record.companyName, pdfReceipts, 'PDF');
+  private incompleteA3(
+    record: A3Record,
+    pdfSuggestionIndex: SuggestionIndex,
+  ): ReconciliationResult {
+    const suggestion = this.findSuggestion(record.companyName, pdfSuggestionIndex, 'PDF');
     return this.result({
       id: `manual-${record.id}`,
       key: '',
@@ -116,8 +139,11 @@ export class ReconciliationEngineService {
     });
   }
 
-  private incompletePdf(receipt: PdfReceipt, a3Records: readonly A3Record[]): ReconciliationResult {
-    const suggestion = this.findSuggestion(receipt.companyName, a3Records, 'A3');
+  private incompletePdf(
+    receipt: PdfReceipt,
+    a3SuggestionIndex: SuggestionIndex,
+  ): ReconciliationResult {
+    const suggestion = this.findSuggestion(receipt.companyName, a3SuggestionIndex, 'A3');
     const extraction = receipt.extractionWarning
       ? ` Text extraction failed: ${receipt.extractionWarning}`
       : '';
@@ -145,23 +171,28 @@ export class ReconciliationEngineService {
 
   private findSuggestion(
     companyName: string,
-    candidates: readonly (A3Record | PdfReceipt)[],
+    index: SuggestionIndex,
     origin: 'A3' | 'PDF',
   ): SuggestionResult {
-    if (!normalizeText(companyName)) {
+    const normalizedName = normalizeText(companyName);
+    if (!normalizedName) {
       return { text: '' };
     }
-    const candidate = candidates.find((item) => namesAreSimilar(companyName, item.companyName));
+    const candidate =
+      index.exact.get(normalizedName) ??
+      index.candidates.find(
+        (item) =>
+          item.normalizedName.includes(normalizedName) ||
+          normalizedName.includes(item.normalizedName),
+      );
     if (!candidate) {
       return { text: '' };
     }
-    const descriptor =
-      'fileName' in candidate ? candidate.fileName : `CSV row ${candidate.rowNumber}`;
     return {
-      text: `Possible ${origin} match by name only: ${descriptor}.`,
+      text: `Possible ${origin} match by name only: ${candidate.descriptor}.`,
       message: {
         key: 'reconciliation.suggestion.nameOnly',
-        params: { origin, descriptor },
+        params: { origin, descriptor: candidate.descriptor },
       },
     };
   }
@@ -170,12 +201,44 @@ export class ReconciliationEngineService {
     const groups = new Map<string, T[]>();
     for (const item of items) {
       const key = buildKey(item);
-      if (!key) {
-        continue;
+      const group = groups.get(key);
+      if (group) {
+        group.push(item);
+      } else {
+        groups.set(key, [item]);
       }
-      groups.set(key, [...(groups.get(key) ?? []), item]);
     }
     return groups;
+  }
+
+  private partitionByCompleteKey<T extends A3Record | PdfReceipt>(
+    items: readonly T[],
+    complete: T[],
+    incomplete: T[],
+  ): void {
+    for (const item of items) {
+      (buildKey(item) ? complete : incomplete).push(item);
+    }
+  }
+
+  private createSuggestionIndex(items: readonly (A3Record | PdfReceipt)[]): SuggestionIndex {
+    const exact = new Map<string, SuggestionCandidate>();
+    const candidates: SuggestionCandidate[] = [];
+    for (const item of items) {
+      const normalizedName = normalizeText(item.companyName);
+      if (!normalizedName) {
+        continue;
+      }
+      const candidate = {
+        normalizedName,
+        descriptor: 'fileName' in item ? item.fileName : `CSV row ${item.rowNumber}`,
+      };
+      candidates.push(candidate);
+      if (!exact.has(normalizedName)) {
+        exact.set(normalizedName, candidate);
+      }
+    }
+    return { exact, candidates };
   }
 
   private result(source: {
@@ -203,7 +266,6 @@ export class ReconciliationEngineService {
       companyName: source.a3?.companyName || source.pdf?.companyName || '',
       filingDate: source.pdf?.filingDate || source.a3?.filingDate || '',
       pdfFileName: source.pdf?.fileName ?? '',
-      pdfFile: source.pdf?.file ?? null,
       status: source.status,
       explanation: source.explanation,
       warning: source.warning,

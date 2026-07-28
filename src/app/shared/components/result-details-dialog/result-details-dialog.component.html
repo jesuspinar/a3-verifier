@@ -50,10 +50,5 @@
   </section>
 </mat-dialog-content>
 <mat-dialog-actions align="end">
-  @if (data.pdfFile) {
-    <button mat-button type="button" (click)="openReceipt()">
-      {{ i18n.t('details.openPdf') }}
-    </button>
-  }
   <button mat-flat-button type="button" (click)="close()">{{ i18n.t('details.close') }}</button>
 </mat-dialog-actions>

@@ -11,6 +11,8 @@ import type { TranslationMessage } from './i18n.service';
 import { PdfExtractionService } from './pdf-extraction.service';
 import { ReconciliationEngineService } from './reconciliation-engine.service';
 
+const MAX_CONCURRENT_PDF_EXTRACTIONS = 2;
+
 interface ReconciliationState {
   readonly loading: boolean;
   readonly error: string | null;
@@ -52,9 +54,7 @@ export class ReconciliationService {
     this.updateState({ loading: true, error: null, results: [], csvWarnings: [] });
     try {
       const parsedCsv = await this.csvParser.parse(csvFile);
-      const pdfReceipts = await Promise.all(
-        pdfFiles.map((file, index) => this.pdfExtractor.extract(file, index)),
-      );
+      const pdfReceipts = await this.extractPdfReceipts(pdfFiles);
       const results = this.engine.reconcile(parsedCsv.records, pdfReceipts);
       this.updateState({
         a3Records: parsedCsv.records,
@@ -79,5 +79,23 @@ export class ReconciliationService {
 
   private updateState(partial: Partial<ReconciliationState>): void {
     this.state.update((current) => ({ ...current, ...partial }));
+  }
+
+  private async extractPdfReceipts(pdfFiles: readonly File[]): Promise<PdfReceipt[]> {
+    const receipts = new Array<PdfReceipt>(pdfFiles.length);
+    let nextIndex = 0;
+    const workerCount = Math.min(MAX_CONCURRENT_PDF_EXTRACTIONS, pdfFiles.length);
+
+    await Promise.all(
+      Array.from({ length: workerCount }, async () => {
+        while (nextIndex < pdfFiles.length) {
+          const index = nextIndex;
+          nextIndex += 1;
+          receipts[index] = await this.pdfExtractor.extract(pdfFiles[index], index);
+        }
+      }),
+    );
+
+    return receipts;
   }
 }

@@ -29,6 +29,19 @@ describe('ReconciliationEngineService', () => {
     expect(results[0].status).toBe('Manual review');
   });
 
+  it('suggests a possible PDF match by indexed company name', () => {
+    const results = service.reconcile(
+      [a3Record({ period: '', companyName: 'Acme Sociedad Limitada' })],
+      [pdfReceipt({ companyName: 'Acme Sociedad Limitada', fileName: 'acme.pdf' })],
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0].suggestionMessage).toEqual({
+      key: 'reconciliation.suggestion.nameOnly',
+      params: { origin: 'PDF', descriptor: 'acme.pdf' },
+    });
+  });
+
   it('ignores PDF receipts that have no matching A3 row', () => {
     const results = service.reconcile([], [pdfReceipt()]);
 
@@ -77,7 +90,6 @@ function pdfReceipt(overrides: Partial<PdfReceipt> = {}): PdfReceipt {
     period: '1T/2026',
     companyName: 'Acme SL',
     filingDate: '01/04/2026',
-    file: new File(['receipt'], 'receipt.pdf', { type: 'application/pdf' }),
     fileName: 'receipt.pdf',
     ...overrides,
   };

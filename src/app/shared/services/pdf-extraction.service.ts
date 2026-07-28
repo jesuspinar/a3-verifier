@@ -42,21 +42,37 @@ export class PdfExtractionService {
     try {
       const { getDocument } = await loadPdfJs();
       const data = await file.arrayBuffer();
-      const document = await getDocument({ data }).promise;
-      const pages: string[] = [];
-      for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
-        const page = await document.getPage(pageNumber);
-        const content = await page.getTextContent();
-        pages.push(
-          content.items
-            .filter((item) => 'str' in item)
-            .map((item) => `${item.str}${item.hasEOL ? '\n' : ' '}`)
-            .join(''),
-        );
-      }
+      const loadingTask = getDocument({ data });
+      let document: Awaited<typeof loadingTask.promise> | null = null;
+      try {
+        document = await loadingTask.promise;
+        let text = '';
+        for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+          const page = await document.getPage(pageNumber);
+          try {
+            const content = await page.getTextContent();
+            text += `${content.items
+              .filter((item) => 'str' in item)
+              .map((item) => `${item.str}${item.hasEOL ? '\n' : ' '}`)
+              .join('')}\n`;
+          } finally {
+            page.cleanup();
+          }
+        }
 
-      const fields = this.extractFields(pages.join('\n'));
-      return this.createReceipt(file, index, fields);
+        const fields = this.extractFields(text);
+        return this.createReceipt(file, index, fields);
+      } finally {
+        if (document) {
+          try {
+            await document.cleanup();
+          } finally {
+            await document.destroy();
+          }
+        } else {
+          await loadingTask.destroy();
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown PDF parsing error';
       return this.createReceipt(file, index, this.emptyFields(), message);
@@ -99,15 +115,14 @@ export class PdfExtractionService {
             '([^\\n]{2,120})',
           ),
         ),
-      filingDate:
-        this.formatFilingDate(
-          this.extractFilingDate(normalized) ||
-            this.valueAfterLabel(
-              normalized,
-              ['Fecha (?:y hora )?de presentaci[oó]n', 'Fecha de registro', 'Fecha'],
-              '(\\d{1,2}[/.-]\\d{1,2}[/.-]\\d{4}(?:\\s+\\d{1,2}:\\d{2}(?::\\d{2})?)?)',
-            ),
-        ),
+      filingDate: this.formatFilingDate(
+        this.extractFilingDate(normalized) ||
+          this.valueAfterLabel(
+            normalized,
+            ['Fecha (?:y hora )?de presentaci[oó]n', 'Fecha de registro', 'Fecha'],
+            '(\\d{1,2}[/.-]\\d{1,2}[/.-]\\d{4}(?:\\s+\\d{1,2}:\\d{2}(?::\\d{2})?)?)',
+          ),
+      ),
     };
   }
 
@@ -240,7 +255,6 @@ export class PdfExtractionService {
       period: fields.period,
       companyName: fields.companyName,
       filingDate: fields.filingDate,
-      file,
       fileName: file.name,
       extractionWarning,
     };

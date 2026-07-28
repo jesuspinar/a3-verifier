@@ -1,10 +1,6 @@
 import type { TranslationMessage } from '../services/i18n.service';
 
-export const RECONCILIATION_STATUSES = [
-  'Matches',
-  'No PDF receipt',
-  'Manual review',
-] as const;
+export const RECONCILIATION_STATUSES = ['Matches', 'No PDF receipt', 'Manual review'] as const;
 
 export type ReconciliationStatus = (typeof RECONCILIATION_STATUSES)[number];
 
@@ -27,7 +23,6 @@ export interface PdfReceipt {
   readonly period: string;
   readonly companyName: string;
   readonly filingDate: string;
-  readonly file: File;
   readonly fileName: string;
   readonly extractionWarning?: string;
 }
@@ -41,7 +36,6 @@ export interface ReconciliationResult {
   readonly companyName: string;
   readonly filingDate: string;
   readonly pdfFileName: string;
-  readonly pdfFile: File | null;
   readonly status: ReconciliationStatus;
   readonly explanation: string;
   readonly warning: string;

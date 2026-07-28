@@ -88,16 +88,6 @@ export class ResultsComponent {
     this.dialog.open(ResultDetailsDialogComponent, { data: result, width: 'min(42rem, 95vw)' });
   }
 
-  openReceipt(result: ReconciliationResult, event?: Event): void {
-    event?.stopPropagation();
-    if (!result.pdfFile) {
-      return;
-    }
-    const url = URL.createObjectURL(result.pdfFile);
-    window.open(url, '_blank', 'noopener,noreferrer');
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  }
-
   statusClass(status: ReconciliationStatus): string {
     return `status-${status.toLowerCase().replace(/[^a-z]+/g, '-')}`;
   }
