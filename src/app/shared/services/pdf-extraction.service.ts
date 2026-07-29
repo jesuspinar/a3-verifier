@@ -50,18 +50,20 @@ export class PdfExtractionService {
       let document: Awaited<typeof loadingTask.promise> | null = null;
       try {
         document = await loadingTask.promise;
+        if (document.numPages < 2) {
+          throw new Error('PDF does not contain page 2');
+        }
+
+        const page = await document.getPage(2);
         let text = '';
-        for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
-          const page = await document.getPage(pageNumber);
-          try {
-            const content = await page.getTextContent();
-            text += `${content.items
-              .filter((item) => 'str' in item)
-              .map((item) => `${item.str}${item.hasEOL ? '\n' : ' '}`)
-              .join('')}\n`;
-          } finally {
-            page.cleanup();
-          }
+        try {
+          const content = await page.getTextContent();
+          text = `${content.items
+            .filter((item) => 'str' in item)
+            .map((item) => `${item.str}${item.hasEOL ? '\n' : ' '}`)
+            .join('')}\n`;
+        } finally {
+          page.cleanup();
         }
 
         const fields = this.extractFields(text);

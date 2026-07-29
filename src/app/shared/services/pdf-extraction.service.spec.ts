@@ -207,7 +207,7 @@ describe('PdfExtractionService', () => {
     });
   });
 
-  it('releases pdf.js page and document resources after extracting a PDF', async () => {
+  it('extracts text from the second PDF page only', async () => {
     const data = randomDeclarationData();
     pdfJsMocks.getTextContent.mockResolvedValue({
       items: [
@@ -226,7 +226,7 @@ describe('PdfExtractionService', () => {
         cleanup: pdfJsMocks.documentCleanup,
         destroy: pdfJsMocks.documentDestroy,
         getPage: pdfJsMocks.getPage,
-        numPages: 1,
+        numPages: 4,
       }),
     });
 
@@ -242,7 +242,41 @@ describe('PdfExtractionService', () => {
       fileName: 'receipt.pdf',
       extractionWarning: undefined,
     });
+    expect(pdfJsMocks.getPage).toHaveBeenCalledOnce();
+    expect(pdfJsMocks.getPage).toHaveBeenCalledWith(2);
+    expect(pdfJsMocks.getTextContent).toHaveBeenCalledOnce();
     expect(pdfJsMocks.pageCleanup).toHaveBeenCalledOnce();
+    expect(pdfJsMocks.documentCleanup).toHaveBeenCalledOnce();
+    expect(pdfJsMocks.documentDestroy).toHaveBeenCalledOnce();
+    expect(pdfJsMocks.loadingDestroy).not.toHaveBeenCalled();
+  });
+
+  it('marks PDFs without a second page for manual review', async () => {
+    pdfJsMocks.getDocument.mockReturnValue({
+      destroy: pdfJsMocks.loadingDestroy,
+      promise: Promise.resolve({
+        cleanup: pdfJsMocks.documentCleanup,
+        destroy: pdfJsMocks.documentDestroy,
+        getPage: pdfJsMocks.getPage,
+        numPages: 1,
+      }),
+    });
+
+    const receipt = await service.extract(new File(['pdf'], 'receipt.pdf'), 3);
+
+    expect(receipt).toEqual({
+      id: 'pdf-3-receipt.pdf',
+      nif: '',
+      model: '',
+      period: '',
+      companyName: '',
+      filingDate: '',
+      fileName: 'receipt.pdf',
+      extractionWarning: 'PDF does not contain page 2',
+    });
+    expect(pdfJsMocks.getPage).not.toHaveBeenCalled();
+    expect(pdfJsMocks.getTextContent).not.toHaveBeenCalled();
+    expect(pdfJsMocks.pageCleanup).not.toHaveBeenCalled();
     expect(pdfJsMocks.documentCleanup).toHaveBeenCalledOnce();
     expect(pdfJsMocks.documentDestroy).toHaveBeenCalledOnce();
     expect(pdfJsMocks.loadingDestroy).not.toHaveBeenCalled();
@@ -260,13 +294,15 @@ describe('PdfExtractionService', () => {
         cleanup: pdfJsMocks.documentCleanup,
         destroy: pdfJsMocks.documentDestroy,
         getPage: pdfJsMocks.getPage,
-        numPages: 1,
+        numPages: 2,
       }),
     });
 
     const receipt = await service.extract(new File(['pdf'], 'receipt.pdf'), 3);
 
     expect(receipt.extractionWarning).toBe('Cannot read page text');
+    expect(pdfJsMocks.getPage).toHaveBeenCalledOnce();
+    expect(pdfJsMocks.getPage).toHaveBeenCalledWith(2);
     expect(pdfJsMocks.pageCleanup).toHaveBeenCalledOnce();
     expect(pdfJsMocks.documentCleanup).toHaveBeenCalledOnce();
     expect(pdfJsMocks.documentDestroy).toHaveBeenCalledOnce();
