@@ -13,18 +13,26 @@ export function normalizeNif(value: string): string {
 }
 
 export function normalizeModel(value: string): string {
-  return value.trim().toUpperCase().replace(/^MODELO\s*/i, '').replace(/\s+/g, '');
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/^MODELO\s*/i, '')
+    .replace(/\s+/g, '');
 }
 
 export function normalizePeriod(value: string, fallbackYear = ''): string {
   const upper = value.trim().toUpperCase().replace(/\s+/g, ' ');
   const year = upper.match(/\b(20\d{2})\b/)?.[1] ?? fallbackYear.match(/\b(20\d{2})\b/)?.[1] ?? '';
   const quarter = upper.match(/\b([1-4])\s*[TQ]\b/);
+  const installment = upper.match(/\b([1-3])\s*P\b/);
   const month = upper.match(/\b(0?[1-9]|1[0-2])\s*(?:M|MES)?\b/);
   const annual = /\b(?:0A|ANUAL|ANNUAL)\b/.test(upper);
 
   if (quarter) {
     return year ? `${quarter[1]}T/${year}` : `${quarter[1]}T`;
+  }
+  if (installment) {
+    return year ? `${installment[1]}P/${year}` : `${installment[1]}P`;
   }
   if (annual) {
     return year ? `0A/${year}` : '0A';
@@ -48,7 +56,7 @@ export function buildKey(record: Pick<A3Record | PdfReceipt, 'nif' | 'model' | '
 }
 
 export function isCompletePeriod(period: string): boolean {
-  return /^(?:[1-4]T|0A|(?:0[1-9]|1[0-2]))\/20\d{2}$/.test(period);
+  return /^(?:[1-4]T|[1-3]P|0A|(?:0[1-9]|1[0-2]))\/20\d{2}$/.test(period);
 }
 
 export function namesAreSimilar(left: string, right: string): boolean {

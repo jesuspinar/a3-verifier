@@ -34,7 +34,7 @@ interface DeclarationRow {
 }
 
 const SPANISH_NIF_PATTERN = '[A-Z]\\d{8}|\\d{8}[A-Z]|[XYZ]\\d{7}[A-Z]';
-const PERIOD_TOKEN_PATTERN = '[1-4]\\s*[TQ]|0A|(?:0?[1-9]|1[0-2])\\s*(?:M|MES)?';
+const PERIOD_TOKEN_PATTERN = '[1-4]\\s*[TQ]|[1-3]\\s*P|0A|(?:0?[1-9]|1[0-2])\\s*(?:M|MES)?';
 const ANO_LABEL = 'A(?:ñ|n|\\uFFFD)o';
 const PERIODO_LABEL = 'Per(?:i|í|\\uFFFD)odo';
 const PRESENTACION_LABEL = 'Presentaci(?:o|ó|\\uFFFD)n';
@@ -88,7 +88,9 @@ export class PdfExtractionService {
   extractFields(text: string): ExtractedFields {
     const normalized = this.normalizeExtractedText(text);
     const lines = this.toLines(text);
-    const declaration = this.extractDeclarationRow(lines);
+    const model = normalizeModel(this.extractModel(lines, normalized));
+    const declaration =
+      this.extractDeclarationByModel(model, lines) || this.extractDeclarationRow(lines);
     const year =
       declaration?.year || this.valueAfterLabel(normalized, ['Ejercicio', ANO_LABEL], '(20\\d{2})');
 
@@ -101,7 +103,7 @@ export class PdfExtractionService {
             `(${SPANISH_NIF_PATTERN})`,
           ),
       ),
-      model: normalizeModel(this.extractModel(lines, normalized)),
+      model,
       year,
       period: normalizePeriod(
         declaration?.period ||
@@ -109,7 +111,8 @@ export class PdfExtractionService {
             normalized,
             [PERIODO_LABEL],
             `(${PERIOD_TOKEN_PATTERN})(?:\\s*[/.-]\\s*(20\\d{2}))?`,
-          ),
+          ) ||
+          this.defaultPeriodForModel(model),
         year,
       ),
       companyName:
@@ -130,6 +133,133 @@ export class PdfExtractionService {
           ),
       ),
     };
+  }
+
+  private extractDeclarationByModel(
+    model: string,
+    lines: readonly string[],
+  ): DeclarationRow | null {
+    switch (model) {
+      case '115':
+      case '202':
+      case '303':
+        return this.extractNifCompanyYearAndPeriod(lines);
+      case '130':
+        return this.extractPersonDeclaration(lines);
+      case '180':
+      case '347':
+        return this.extractAnnualDeclaration(lines);
+      case '390':
+        return this.extractAnnualDeclarationAfterJustificante(lines);
+      case '200':
+        return this.extractNifCompanyYearAndPeriod(lines, '0A');
+      default:
+        return null;
+    }
+  }
+
+  private extractNifCompanyYearAndPeriod(
+    lines: readonly string[],
+    fallbackPeriod = '',
+  ): DeclarationRow | null {
+    const footerLines = this.extractFooterLines(lines);
+    for (let index = 0; index < footerLines.length; index += 1) {
+      const declaration = this.parseNifAndCompanyLine(footerLines[index]);
+      if (!declaration) {
+        continue;
+      }
+
+      const yearAndPeriod = this.extractYearAndPeriod(footerLines, index + 1, fallbackPeriod);
+      if (yearAndPeriod) {
+        return {
+          nif: declaration.nif,
+          companyName: declaration.companyName,
+          year: yearAndPeriod.year,
+          period: yearAndPeriod.period,
+        };
+      }
+    }
+
+    return null;
+  }
+
+  private extractPersonDeclaration(lines: readonly string[]): DeclarationRow | null {
+    const footerLines = this.extractFooterLines(lines);
+    for (let index = 0; index < footerLines.length; index += 1) {
+      if (!new RegExp(`^${SPANISH_NIF_PATTERN}$`, 'i').test(footerLines[index])) {
+        continue;
+      }
+
+      const yearPeriodIndex = this.findYearPeriodLineIndex(footerLines, index + 1, index + 5);
+      if (yearPeriodIndex === -1) {
+        continue;
+      }
+
+      const companyName = footerLines.slice(index + 1, yearPeriodIndex).join(' ');
+      if (!this.isPlausibleCompanyName(companyName)) {
+        continue;
+      }
+
+      const yearAndPeriod = this.parseYearPeriodLine(footerLines[yearPeriodIndex]);
+      if (yearAndPeriod) {
+        return {
+          nif: footerLines[index],
+          companyName: this.cleanCompanyName(companyName),
+          year: yearAndPeriod.year,
+          period: yearAndPeriod.period,
+        };
+      }
+    }
+
+    return null;
+  }
+
+  private extractAnnualDeclaration(lines: readonly string[]): DeclarationRow | null {
+    const footerLines = this.extractFooterLines(lines);
+    for (let index = 0; index < footerLines.length - 2; index += 1) {
+      const year = /^(20\d{2})$/.exec(footerLines[index])?.[1];
+      if (!year || !new RegExp(`^${SPANISH_NIF_PATTERN}$`, 'i').test(footerLines[index + 1])) {
+        continue;
+      }
+
+      const companyName = footerLines[index + 2];
+      if (this.isPlausibleCompanyName(companyName)) {
+        return {
+          nif: footerLines[index + 1],
+          companyName: this.cleanCompanyName(companyName),
+          year,
+          period: '0A',
+        };
+      }
+    }
+
+    return null;
+  }
+
+  private extractAnnualDeclarationAfterJustificante(
+    lines: readonly string[],
+  ): DeclarationRow | null {
+    const footerLines = this.extractFooterLines(lines);
+    const nifExpression = new RegExp(`\\b(${SPANISH_NIF_PATTERN})\\b`, 'i');
+
+    for (let index = 0; index < footerLines.length - 2; index += 1) {
+      if (!/(?:justificante|identificativo)/i.test(footerLines[index])) {
+        continue;
+      }
+
+      const nif = nifExpression.exec(footerLines[index])?.[1];
+      const year = /^(20\d{2})$/.exec(footerLines[index + 2])?.[1];
+      if (nif && year && this.isPlausibleCompanyName(footerLines[index + 1])) {
+        return {
+          nif,
+          companyName: this.cleanCompanyName(footerLines[index + 1]),
+          year,
+          period: '0A',
+        };
+      }
+    }
+
+    return null;
   }
 
   private extractDeclarationRow(lines: readonly string[]): DeclarationRow | null {
@@ -171,17 +301,29 @@ export class PdfExtractionService {
 
   private extractModel(lines: readonly string[], normalized: string): string {
     for (let index = 0; index < lines.length; index += 1) {
-      const inlineMatch = /^Modelo\s+([A-Z0-9-]{1,8})$/i.exec(lines[index]);
+      const inlineMatch = /^Mod\s*elo\s+([A-Z0-9-]{1,8})(?:\s|$)/i.exec(lines[index]);
       if (inlineMatch?.[1]) {
         return inlineMatch[1];
       }
 
-      if (/^Modelo$/i.test(lines[index]) && /^[A-Z0-9-]{1,8}$/i.test(lines[index + 1] ?? '')) {
-        return lines[index + 1];
+      if (/^Mod\s*elo$/i.test(lines[index])) {
+        const nextLineModel = this.extractLeadingModelToken(lines[index + 1] ?? '');
+        if (nextLineModel) {
+          return nextLineModel;
+        }
       }
     }
 
     return this.valueAfterLabel(normalized, ['Modelo'], '([A-Z0-9-]{1,8})');
+  }
+
+  private extractLeadingModelToken(line: string): string {
+    const numericModel = /^(\d(?:\s*\d){2,3})\b/.exec(line);
+    if (numericModel?.[1]) {
+      return numericModel[1].replace(/\s+/g, '');
+    }
+
+    return /^([A-Z0-9-]{1,8})(?:\s|$)/i.exec(line)?.[1] ?? '';
   }
 
   private extractFilingDate(text: string): string {
@@ -230,6 +372,84 @@ export class PdfExtractionService {
       .split(/\r?\n/)
       .map((line) => line.replace(/[ \t]+/g, ' ').trim())
       .filter(Boolean);
+  }
+
+  private extractFooterLines(lines: readonly string[]): string[] {
+    let ministryIndex = -1;
+    for (let index = lines.length - 1; index >= 0; index -= 1) {
+      if (/^MINISTERIO$/i.test(lines[index])) {
+        ministryIndex = index;
+        break;
+      }
+    }
+
+    if (ministryIndex === -1) {
+      return [...lines];
+    }
+
+    const startIndex = /^DE HACIENDA$/i.test(lines[ministryIndex + 1] ?? '')
+      ? ministryIndex + 2
+      : ministryIndex + 1;
+    return lines.slice(startIndex);
+  }
+
+  private parseNifAndCompanyLine(line: string): Pick<DeclarationRow, 'nif' | 'companyName'> | null {
+    const match = new RegExp(`^(${SPANISH_NIF_PATTERN})\\s+(.+)$`, 'i').exec(line);
+    if (!match?.[1] || !this.isPlausibleCompanyName(match[2])) {
+      return null;
+    }
+
+    return {
+      nif: match[1],
+      companyName: this.cleanCompanyName(match[2]),
+    };
+  }
+
+  private extractYearAndPeriod(
+    lines: readonly string[],
+    startIndex: number,
+    fallbackPeriod: string,
+  ): Pick<DeclarationRow, 'year' | 'period'> | null {
+    const sameLine = this.parseYearPeriodLine(lines[startIndex] ?? '');
+    if (sameLine) {
+      return sameLine;
+    }
+
+    const year = /^(20\d{2})$/.exec(lines[startIndex] ?? '')?.[1];
+    if (!year) {
+      return null;
+    }
+
+    if (fallbackPeriod) {
+      return { year, period: fallbackPeriod };
+    }
+
+    const period = new RegExp(`^(${PERIOD_TOKEN_PATTERN})$`, 'i').exec(
+      lines[startIndex + 1] ?? '',
+    )?.[1];
+    return period ? { year, period } : null;
+  }
+
+  private findYearPeriodLineIndex(
+    lines: readonly string[],
+    startIndex: number,
+    endIndex: number,
+  ): number {
+    for (let index = startIndex; index <= endIndex && index < lines.length; index += 1) {
+      if (this.parseYearPeriodLine(lines[index])) {
+        return index;
+      }
+    }
+    return -1;
+  }
+
+  private parseYearPeriodLine(line: string): Pick<DeclarationRow, 'year' | 'period'> | null {
+    const match = new RegExp(`^(20\\d{2})\\s+(${PERIOD_TOKEN_PATTERN})$`, 'i').exec(line);
+    return match ? { year: match[1], period: match[2] } : null;
+  }
+
+  private defaultPeriodForModel(model: string): string {
+    return ['180', '200', '347', '390'].includes(model) ? '0A' : '';
   }
 
   private cleanFieldValue(value: string): string {
