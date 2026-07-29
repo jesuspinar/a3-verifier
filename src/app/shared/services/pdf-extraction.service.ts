@@ -35,6 +35,10 @@ interface DeclarationRow {
 
 const SPANISH_NIF_PATTERN = '[A-Z]\\d{8}|\\d{8}[A-Z]|[XYZ]\\d{7}[A-Z]';
 const PERIOD_TOKEN_PATTERN = '[1-4]\\s*[TQ]|0A|(?:0?[1-9]|1[0-2])\\s*(?:M|MES)?';
+const ANO_LABEL = 'A(?:ñ|n|\\uFFFD)o';
+const PERIODO_LABEL = 'Per(?:i|í|\\uFFFD)odo';
+const PRESENTACION_LABEL = 'Presentaci(?:o|ó|\\uFFFD)n';
+const RAZON_LABEL = 'Raz(?:o|ó|\\uFFFD)n';
 
 @Injectable({ providedIn: 'root' })
 export class PdfExtractionService {
@@ -84,7 +88,7 @@ export class PdfExtractionService {
     const lines = this.toLines(text);
     const declaration = this.extractDeclarationRow(lines);
     const year =
-      declaration?.year || this.valueAfterLabel(normalized, ['Ejercicio', 'Año'], '(20\\d{2})');
+      declaration?.year || this.valueAfterLabel(normalized, ['Ejercicio', ANO_LABEL], '(20\\d{2})');
 
     return {
       nif: normalizeNif(
@@ -101,7 +105,7 @@ export class PdfExtractionService {
         declaration?.period ||
           this.valueAfterLabel(
             normalized,
-            ['Per[ií]odo'],
+            [PERIODO_LABEL],
             `(${PERIOD_TOKEN_PATTERN})(?:\\s*[/.-]\\s*(20\\d{2}))?`,
           ),
         year,
@@ -111,7 +115,7 @@ export class PdfExtractionService {
         this.cleanFieldValue(
           this.valueAfterLabel(
             normalized,
-            ['Apellidos y nombre o raz[oó]n social', 'Raz[oó]n social', 'Declarante'],
+            [`Apellidos y nombre o ${RAZON_LABEL} social`, `${RAZON_LABEL} social`, 'Declarante'],
             '([^\\n]{2,120})',
           ),
         ),
@@ -119,7 +123,7 @@ export class PdfExtractionService {
         this.extractFilingDate(normalized) ||
           this.valueAfterLabel(
             normalized,
-            ['Fecha (?:y hora )?de presentaci[oó]n', 'Fecha de registro', 'Fecha'],
+            [`Fecha (?:y hora )?de ${PRESENTACION_LABEL}`, 'Fecha de registro', 'Fecha'],
             '(\\d{1,2}[/.-]\\d{1,2}[/.-]\\d{4}(?:\\s+\\d{1,2}:\\d{2}(?::\\d{2})?)?)',
           ),
       ),
@@ -179,10 +183,10 @@ export class PdfExtractionService {
   }
 
   private extractFilingDate(text: string): string {
-    const match =
-      /Presentaci[oó]n realizada el\s*:\s*(\d{1,2}[/.-]\d{1,2}[/.-]\d{4})(?:\s+a las\s+(\d{1,2}:\d{2}(?::\d{2})?))?/i.exec(
-        text,
-      );
+    const match = new RegExp(
+      `${PRESENTACION_LABEL} realizada el\\s*:\\s*(\\d{1,2}[/.-]\\d{1,2}[/.-]\\d{4})(?:\\s+a las\\s+(\\d{1,2}:\\d{2}(?::\\d{2})?))?`,
+      'i',
+    ).exec(text);
     if (!match?.[1]) {
       return '';
     }

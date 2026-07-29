@@ -42,6 +42,7 @@ export class CsvParserService {
     const Papa = await loadPapaParse();
     return new Promise((resolve, reject) => {
       Papa.parse<CsvRow>(file, {
+        encoding: 'windows-1252',
         header: true,
         skipEmptyLines: 'greedy',
         transformHeader: (header: string) => this.canonicalHeader(header),

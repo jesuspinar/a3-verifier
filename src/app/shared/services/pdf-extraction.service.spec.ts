@@ -167,6 +167,46 @@ describe('PdfExtractionService', () => {
     expect(fields.model).toBe(data.model);
   });
 
+  it('extracts fields when PDF labels are missing accents', () => {
+    const fields = service.extractFields(`
+      Modelo 303
+      N.I.F.: B12345678
+      Ano: 2026
+      Periodo: 2T
+      Razon social: Munoz Alvarez SL
+      Fecha de presentacion: 3/7/2026
+    `);
+
+    expect(fields).toEqual({
+      nif: 'B12345678',
+      model: '303',
+      year: '2026',
+      period: '2T/2026',
+      companyName: 'Munoz Alvarez SL',
+      filingDate: '03/07/2026',
+    });
+  });
+
+  it('extracts fields when PDF labels contain replacement characters', () => {
+    const fields = service.extractFields(`
+      Modelo 115
+      N.I.F.: B87654321
+      A\uFFFDo: 2026
+      Per\uFFFDodo: 1T
+      Raz\uFFFDn social: Peña Gestión SL
+      Fecha de presentaci\uFFFDn: 15/04/2026
+    `);
+
+    expect(fields).toEqual({
+      nif: 'B87654321',
+      model: '115',
+      year: '2026',
+      period: '1T/2026',
+      companyName: 'Peña Gestión SL',
+      filingDate: '15/04/2026',
+    });
+  });
+
   it('releases pdf.js page and document resources after extracting a PDF', async () => {
     const data = randomDeclarationData();
     pdfJsMocks.getTextContent.mockResolvedValue({
